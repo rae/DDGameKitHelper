@@ -6,10 +6,13 @@
 
 #import <GameKit/GameKit.h>
 
-@protocol DDGameKitHelperProtocol
+@protocol DDGameKitHelperProtocol <NSObject>
+
+@optional
 -(bool) compare:(int64_t)score1 to:(int64_t)score2;
 -(void) onSubmitScore:(int64_t)score;
 -(void) onReportAchievement:(GKAchievement*)achievement;
+
 @end
 
 @interface DDGameKitHelper : NSObject <GKLeaderboardViewControllerDelegate, GKAchievementViewControllerDelegate, GKGameCenterControllerDelegate>
@@ -41,7 +44,9 @@
 
 -(void) submitScore:(int64_t)value category:(NSString*)category;
 
--(void) reportAchievement:(NSString*)identifier percentComplete:(float)percent;
+-(void) reportAchievement:(NSString*)identifier
+          percentComplete:(double)percent
+     withCompletionBanner:(bool)completionBanner;
 
 -(void) resetAchievements;
 

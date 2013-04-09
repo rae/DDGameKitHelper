@@ -15,6 +15,7 @@ static NSString* kScoresFile = @".scores";
 -(void) registerForLocalPlayerAuthChange;
 -(void) initScores;
 -(void) initAchievements;
+-(bool) compareScore:(GKScore *)score toScore:(GKScore *)otherScore;
 -(void) synchronizeAchievements;
 -(void) synchronizeScores;
 -(void) saveScores;
@@ -138,19 +139,19 @@ static DDGameKitHelper *instanceOfGameKitHelper;
         return;
     
     GKLocalPlayer* localPlayer = [GKLocalPlayer localPlayer];
-    if (localPlayer.authenticated == NO)
+    if (localPlayer.authenticateHandler == nil)
     {
-        [localPlayer authenticateWithCompletionHandler:^(NSError* error)
-         {
-             if (error != nil)
-             {
-                 NSLog(@"error authenticating player: %@", [error localizedDescription]);
-             }
-             else
-             {
-                 NSLog(@"player authenticated");
-             }
-         }];
+        localPlayer.authenticateHandler = ^(UIViewController *viewController, NSError *error) {
+            if (error != nil)
+            {
+                NSLog(@"error authenticating player: %@", [error localizedDescription]);
+            }
+            
+            if(viewController)
+            {
+                [self presentViewController:viewController];
+            }
+        };
     }
 }
 
@@ -252,6 +253,15 @@ static DDGameKitHelper *instanceOfGameKitHelper;
     NSLog(@"achievements initialized: %d", achievements.count);
 }
 
+-(bool) compareScore:(GKScore *)score toScore:(GKScore *)otherScore
+{
+    if(delegate) {
+        return [delegate compare:score.value to:otherScore.value];
+    } else {
+        return score.value > otherScore.value;
+    }
+}
+
 - (void) saveScores
 {
     NSString* libraryPath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
@@ -276,7 +286,7 @@ static DDGameKitHelper *instanceOfGameKitHelper;
     
     // get the top score for each category for current player and compare it to the game center score for the same category
     
-    [GKLeaderboard loadCategoriesWithCompletionHandler:^(NSArray *categories, NSArray *titles, NSError *error) 
+    [GKLeaderboard loadLeaderboardsWithCompletionHandler:^(NSArray *leaderboards, NSError *error) 
      {
          if (error != nil)
          {
@@ -286,8 +296,10 @@ static DDGameKitHelper *instanceOfGameKitHelper;
          
          NSString* playerId = [GKLocalPlayer localPlayer].playerID;
          
-         for (NSString* category in categories) 
-         {            
+         for (GKLeaderboard *globalLeaderboard in leaderboards)
+         {
+             NSString *category = globalLeaderboard.category;
+             
              GKLeaderboard *leaderboardRequest = [[GKLeaderboard alloc] initWithPlayerIDs:[NSArray arrayWithObject:playerId]];
              leaderboardRequest.category = category;
              leaderboardRequest.timeScope = GKLeaderboardTimeScopeAllTime;
@@ -327,13 +339,13 @@ static DDGameKitHelper *instanceOfGameKitHelper;
                       [self saveScores];
                   }
                   
-                  else if ([delegate compare:localScore.value to:gcScore.value])
+                  else if ([self compareScore:localScore toScore:gcScore])
                   {
                       NSLog(@"%@(%lld,%lld): local score more current than gc score. reporting local score", category, gcScore.value, localScore.value);
                       [toReport reportScoreWithCompletionHandler:^(NSError* error) {}];
                   }
                   
-                  else if ([delegate compare:gcScore.value to:localScore.value])
+                  else if ([self compareScore:gcScore toScore:localScore])
                   {
                       NSLog(@"%@(%lld,%lld): gc score is more current than local score. caching gc score", category, gcScore.value, localScore.value);
                       [scores setObject:gcScore forKey:gcScore.category];
@@ -400,6 +412,8 @@ static DDGameKitHelper *instanceOfGameKitHelper;
      }];
 }
 
+
+
 -(void) submitScore:(int64_t)value category:(NSString*)category
 {
     if (isGameCenterAvailable == NO)
@@ -413,12 +427,14 @@ static DDGameKitHelper *instanceOfGameKitHelper;
      {
          // if it's better than the previous score, then save it and notify the user
          GKScore* score = [self getScoreByCategory:category];
-         if ([delegate compare:value to:score.value])
+         if ([self compareScore:newScore toScore:score])
          {
              NSLog(@"new high score of %lld for %@", score.value, category);
              score.value = value;
              [self saveScores];
-             [delegate onSubmitScore:value];
+             if([delegate respondsToSelector:@selector(onSubmitScore:)]) {
+                 [delegate onSubmitScore:value];
+             }
          }
      }];
     
@@ -439,7 +455,9 @@ static DDGameKitHelper *instanceOfGameKitHelper;
     return score;
 }
 
--(void) reportAchievement:(NSString*)identifier percentComplete:(float)percent
+-(void) reportAchievement:(NSString*)identifier
+          percentComplete:(double)percent
+     withCompletionBanner:(bool)completionBanner
 {
     if (isGameCenterAvailable == NO)
         return;
@@ -449,9 +467,12 @@ static DDGameKitHelper *instanceOfGameKitHelper;
     {
         NSLog(@"new achievement %@ reported", achievement.identifier);
         achievement.percentComplete = percent;
+        achievement.showsCompletionBanner = completionBanner;
         [achievement reportAchievementWithCompletionHandler:^(NSError* error)
          {
-             [delegate onReportAchievement:(GKAchievement*)achievement];
+             if([delegate respondsToSelector:@selector(onReportAchievement:)]) {
+                 [delegate onReportAchievement:achievement];
+             }
          }];
         
         [self saveAchievements];
@@ -521,13 +542,13 @@ static DDGameKitHelper *instanceOfGameKitHelper;
 -(void) presentViewController:(UIViewController*)vc
 {
     UIViewController* rootVC = [self getRootViewController];
-    [rootVC presentModalViewController:vc animated:YES];
+    [rootVC presentViewController:vc animated:YES completion:nil];
 }
 
 -(void) dismissModalViewController
 {
     UIViewController* rootVC = [self getRootViewController];
-    [rootVC dismissModalViewControllerAnimated:YES];
+    [rootVC dismissViewControllerAnimated:YES completion:nil];
 }
 
 -(void) showGameCenter
