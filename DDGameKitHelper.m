@@ -58,7 +58,6 @@ static DDGameKitHelper *instanceOfGameKitHelper;
 }
 
 @synthesize delegate;
-@synthesize isGameCenterAvailable;
 @synthesize achievements;
 @synthesize scores;
 @synthesize achievementDescriptions;
@@ -83,21 +82,7 @@ static DDGameKitHelper *instanceOfGameKitHelper;
     if ((self = [super init]))
     {
         delegate = [[DDGameKitHelperDelegate alloc] init];
-        
-        // Test for Game Center availability
-        Class gameKitLocalPlayerClass = NSClassFromString(@"GKLocalPlayer");
-        bool isLocalPlayerAvailable = (gameKitLocalPlayerClass != nil);
-        
-        // Test if device is running iOS 4.1 or higher
-        NSString* reqSysVer = @"4.1";
-        NSString* currSysVer = [[UIDevice currentDevice] systemVersion];
-        bool isOSVer41 = ([currSysVer compare:reqSysVer options:NSNumericSearch] != NSOrderedAscending);
-        
-        isGameCenterAvailable = (isLocalPlayerAvailable && isOSVer41);
-        NSLog(@"GameCenter available = %@", isGameCenterAvailable ? @"YES" : @"NO");
-        
-        if (isGameCenterAvailable)
-            [self registerForLocalPlayerAuthChange];
+        [self registerForLocalPlayerAuthChange];
     }
     
     return self;
@@ -122,22 +107,9 @@ static DDGameKitHelper *instanceOfGameKitHelper;
     [super dealloc];
 }
 
--(void) setNotAvailable
-{
-    isGameCenterAvailable = NO;
-    [[NSNotificationCenter defaultCenter] removeObserver:self];
-}
-
--(bool) isAvailable
-{
-    return isGameCenterAvailable;
-}
 
 -(void) authenticateLocalPlayer
 {
-    if (isGameCenterAvailable == NO)
-        return;
-    
     GKLocalPlayer* localPlayer = [GKLocalPlayer localPlayer];
     if (localPlayer.authenticateHandler == nil)
     {
@@ -157,9 +129,6 @@ static DDGameKitHelper *instanceOfGameKitHelper;
 
 -(bool) isLocalPlayerAuthenticated
 {
-	if (isGameCenterAvailable == NO)
-		return isGameCenterAvailable;
-
 	GKLocalPlayer* localPlayer = [GKLocalPlayer localPlayer];
 	return localPlayer.authenticated;
 }
@@ -206,9 +175,6 @@ static DDGameKitHelper *instanceOfGameKitHelper;
 
 -(void) registerForLocalPlayerAuthChange
 {
-    if (isGameCenterAvailable == NO)
-        return;
-    
     NSNotificationCenter* nc = [NSNotificationCenter defaultCenter];
     [nc addObserver:self selector:@selector(onLocalPlayerAuthenticationChanged) name:GKPlayerAuthenticationDidChangeNotificationName object:nil];
 }
@@ -416,9 +382,6 @@ static DDGameKitHelper *instanceOfGameKitHelper;
 
 -(void) submitScore:(int64_t)value category:(NSString*)category
 {
-    if (isGameCenterAvailable == NO)
-        return;
-    
     // always report the new score
     NSLog(@"reporting score of %lld for %@", value, category);
     GKScore* newScore = [[GKScore alloc] initWithCategory:category];
@@ -459,9 +422,6 @@ static DDGameKitHelper *instanceOfGameKitHelper;
           percentComplete:(double)percent
      withCompletionBanner:(bool)completionBanner
 {
-    if (isGameCenterAvailable == NO)
-        return;
-    
     GKAchievement* achievement = [self getAchievement:identifier];
     if (achievement.percentComplete < percent)
     {
@@ -523,9 +483,6 @@ static DDGameKitHelper *instanceOfGameKitHelper;
 
 -(void) resetAchievements
 {
-    if (isGameCenterAvailable == NO)
-        return;
-    
     [achievements removeAllObjects];
     [self saveAchievements];
     
@@ -553,15 +510,6 @@ static DDGameKitHelper *instanceOfGameKitHelper;
 
 -(void) showGameCenter
 {
-    if (isGameCenterAvailable == NO)
-    {
-      UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Game Center" message:@"Game Center is not available" delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil, nil];
-      [alert show];
-      [alert release];
-      
-      return;
-    }
-  
     if ([GKGameCenterViewController class])
     {
         GKGameCenterViewController *gameCenterController = [[[GKGameCenterViewController alloc] init] autorelease];
@@ -584,15 +532,6 @@ static DDGameKitHelper *instanceOfGameKitHelper;
 
 -(void) showLeaderboard
 {
-    if (isGameCenterAvailable == NO)
-    {
-        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Game Center" message:@"Game Center is not available" delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil, nil];
-        [alert show];
-        [alert release];
-        
-        return;
-    }
-    
     GKLeaderboardViewController* leaderboardVC = [[[GKLeaderboardViewController alloc] init] autorelease];
     if (leaderboardVC != nil)
     {
@@ -603,15 +542,6 @@ static DDGameKitHelper *instanceOfGameKitHelper;
 
 -(void) showLeaderboardwithCategory:(NSString*)category timeScope:(int)tscope 
 {
-    if (isGameCenterAvailable == NO)
-    {
-        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Game Center" message:@"Game Center is not available" delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil, nil];
-        [alert show];
-        [alert release];
-        
-        return;
-    }
-    
     GKLeaderboardViewController* leaderboardVC = [[[GKLeaderboardViewController alloc] init] autorelease];
     if (leaderboardVC != nil)
     {
@@ -629,15 +559,6 @@ static DDGameKitHelper *instanceOfGameKitHelper;
 
 -(void) showAchievements
 {
-    if (isGameCenterAvailable == NO)
-    {
-        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Game Center" message:@"Game Center is not available" delegate:nil cancelButtonTitle:@"OK" otherButtonTitles: nil, nil];
-        [alert show];
-        [alert release];
-        
-        return;
-    }
-    
     GKAchievementViewController* achievementsVC = [[[GKAchievementViewController alloc] init] autorelease];
     if (achievementsVC != nil)
     {

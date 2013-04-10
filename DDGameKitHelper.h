@@ -18,7 +18,6 @@
 @interface DDGameKitHelper : NSObject <GKLeaderboardViewControllerDelegate, GKAchievementViewControllerDelegate, GKGameCenterControllerDelegate>
 {
     id<DDGameKitHelperProtocol> delegate;
-    bool isGameCenterAvailable;
     NSMutableDictionary* achievements;
     NSMutableDictionary* scores;
     NSMutableDictionary* achievementDescriptions;
@@ -26,17 +25,12 @@
 }
 
 @property (nonatomic, retain) id<DDGameKitHelperProtocol> delegate;
-@property (nonatomic, readonly) bool isGameCenterAvailable;
 @property (nonatomic, readonly) NSMutableDictionary* achievements;
 @property (nonatomic, readonly) NSMutableDictionary* scores;
 @property (nonatomic, readonly) NSMutableDictionary* achievementDescriptions;
 @property (nonatomic, retain) NSString* currentPlayerID;
 
 +(DDGameKitHelper*) sharedGameKitHelper;
-
--(void) setNotAvailable;
-
--(bool) isAvailable;
 
 -(void) authenticateLocalPlayer;
 
