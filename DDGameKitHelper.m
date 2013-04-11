@@ -80,7 +80,10 @@ static NSString* const kScoresFile = @".scores";
             
             if (viewController)
             {
-                [self presentViewController:viewController];
+                [[NSOperationQueue mainQueue] addOperationWithBlock:^
+                {
+                    [self presentViewController:viewController];
+                }];
             }
         };
     }
