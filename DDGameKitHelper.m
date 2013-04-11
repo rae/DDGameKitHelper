@@ -25,7 +25,8 @@ static NSString* const kScoresFile = @".scores";
     static DDGameKitHelper *sInstanceOfGameKitHelper;
 
     static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
+    dispatch_once(&onceToken, ^
+    {
         sInstanceOfGameKitHelper = [[DDGameKitHelper alloc] init];
     });
  
@@ -237,8 +238,8 @@ static NSString* const kScoresFile = @".scores";
                 leaderboardRequest.range = NSMakeRange(1,1);
                 [leaderboardRequest loadScoresWithCompletionHandler: ^(NSArray *playerScores, NSError *error)
                  {
-                    [[NSOperationQueue mainQueue] addOperationWithBlock:
-                     ^{
+                    [[NSOperationQueue mainQueue] addOperationWithBlock:^
+                     {
                         if (error != nil)
                         {
                             NSLog(@"unable to synchronize scores");
@@ -304,8 +305,8 @@ static NSString* const kScoresFile = @".scores";
     
     [GKAchievement loadAchievementsWithCompletionHandler:^(NSArray* gcAchievementsArray, NSError* error)
      {
-        [[NSOperationQueue mainQueue] addOperationWithBlock:
-         ^{
+        [[NSOperationQueue mainQueue] addOperationWithBlock:^
+         {
             if (error != nil)
             {
                 NSLog(@"unable to synchronize achievements");
@@ -358,8 +359,8 @@ withCompletionBanner:(BOOL)completionBanner
     newScore.value = value;
     [newScore reportScoreWithCompletionHandler:^(NSError* error)
     {
-        [[NSOperationQueue mainQueue] addOperationWithBlock:
-         ^{
+        [[NSOperationQueue mainQueue] addOperationWithBlock:^
+         {
             // if it's better than the previous score, then save it and notify the user
             GKScore* score = [self getScoreByCategory:category];
             if ([self compareScore:newScore toScore:score])
@@ -410,8 +411,8 @@ withCompletionBanner:(BOOL)completionBanner
         achievement.showsCompletionBanner = completionBanner;
         [achievement reportAchievementWithCompletionHandler:^(NSError* error)
          {
-            [[NSOperationQueue mainQueue] addOperationWithBlock:
-             ^{
+            [[NSOperationQueue mainQueue] addOperationWithBlock:^
+             {
                 if ([self.delegate respondsToSelector:@selector(onReportAchievement:)])
                 {
                     [self.delegate onReportAchievement:achievement];
@@ -442,8 +443,8 @@ withCompletionBanner:(BOOL)completionBanner
     
     [GKAchievementDescription loadAchievementDescriptionsWithCompletionHandler:^(NSArray *achievementDesc, NSError *error)
      {
-        [[NSOperationQueue mainQueue] addOperationWithBlock:
-         ^{
+        [[NSOperationQueue mainQueue] addOperationWithBlock:^
+         {
             self.achievementDescriptions = [[NSMutableDictionary alloc] init];
             
             if (error != nil)
