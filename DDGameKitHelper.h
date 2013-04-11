@@ -9,38 +9,34 @@
 @protocol DDGameKitHelperProtocol <NSObject>
 
 @optional
--(bool) compare:(int64_t)score1 to:(int64_t)score2;
+-(BOOL) compare:(int64_t)score1 to:(int64_t)score2;
 -(void) onSubmitScore:(int64_t)score;
 -(void) onReportAchievement:(GKAchievement*)achievement;
 
 @end
 
 @interface DDGameKitHelper : NSObject <GKLeaderboardViewControllerDelegate, GKAchievementViewControllerDelegate, GKGameCenterControllerDelegate>
-{
-    id<DDGameKitHelperProtocol> delegate;
-    NSMutableDictionary* achievements;
-    NSMutableDictionary* scores;
-    NSMutableDictionary* achievementDescriptions;
-    NSString* currentPlayerID;
-}
 
-@property (nonatomic, retain) id<DDGameKitHelperProtocol> delegate;
+@property (nonatomic, weak) id<DDGameKitHelperProtocol> delegate;
+
+@property (nonatomic, copy) NSString* currentPlayerID;
 @property (nonatomic, readonly) NSMutableDictionary* achievements;
 @property (nonatomic, readonly) NSMutableDictionary* scores;
 @property (nonatomic, readonly) NSMutableDictionary* achievementDescriptions;
-@property (nonatomic, retain) NSString* currentPlayerID;
 
 +(DDGameKitHelper*) sharedGameKitHelper;
 
 -(void) authenticateLocalPlayer;
 
--(bool) isLocalPlayerAuthenticated;
+-(BOOL) isLocalPlayerAuthenticated;
 
--(void) submitScore:(int64_t)value category:(NSString*)category;
+-(void) submitScore:(int64_t)value
+           category:(NSString*)category
+withCompletionBanner:(BOOL)completionBanner;
 
 -(void) reportAchievement:(NSString*)identifier
           percentComplete:(double)percent
-     withCompletionBanner:(bool)completionBanner;
+     withCompletionBanner:(BOOL)completionBanner;
 
 -(void) resetAchievements;
 
@@ -48,7 +44,7 @@
 
 -(void) showLeaderboard;
 
--(void) showLeaderboardwithCategory:(NSString*)category timeScope:(int)tscope;
+-(void) showLeaderboardwithCategory:(NSString*)category timeScope:(GKLeaderboardTimeScope)tscope;
 
 -(void) showAchievements;
 
