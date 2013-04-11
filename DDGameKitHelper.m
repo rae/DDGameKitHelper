@@ -70,13 +70,14 @@ static NSString* const kScoresFile = @".scores";
     GKLocalPlayer* localPlayer = [GKLocalPlayer localPlayer];
     if (localPlayer.authenticateHandler == nil)
     {
-        localPlayer.authenticateHandler = ^(UIViewController *viewController, NSError *error) {
+        localPlayer.authenticateHandler = ^(UIViewController *viewController, NSError *error)
+        {
             if (error != nil)
             {
                 NSLog(@"error authenticating player: %@", [error localizedDescription]);
             }
             
-            if(viewController)
+            if (viewController)
             {
                 [self presentViewController:viewController];
             }
@@ -180,9 +181,12 @@ static NSString* const kScoresFile = @".scores";
 
 -(BOOL) compareScore:(GKScore *)score toScore:(GKScore *)otherScore
 {
-    if(self.delegate) {
+    if (self.delegate)
+    {
         return [self.delegate compare:score.value to:otherScore.value];
-    } else {
+    }
+    else
+    {
         return score.value > otherScore.value;
     }
 }
@@ -211,79 +215,85 @@ static NSString* const kScoresFile = @".scores";
     
     // get the top score for each category for current player and compare it to the game center score for the same category
     
-    [GKLeaderboard loadLeaderboardsWithCompletionHandler:^(NSArray *leaderboards, NSError *error) 
-     {
-         if (error != nil)
-         {
-             NSLog(@"unable to synchronize scores");
-             return;
-         }
-         
-         NSString* playerId = [GKLocalPlayer localPlayer].playerID;
-         
-         for (GKLeaderboard *globalLeaderboard in leaderboards)
-         {
-             NSString *category = globalLeaderboard.category;
-             
-             GKLeaderboard *leaderboardRequest = [[GKLeaderboard alloc] initWithPlayerIDs:[NSArray arrayWithObject:playerId]];
-             leaderboardRequest.category = category;
-             leaderboardRequest.timeScope = GKLeaderboardTimeScopeAllTime;
-             leaderboardRequest.range = NSMakeRange(1,1);
-             [leaderboardRequest loadScoresWithCompletionHandler: ^(NSArray *playerScores, NSError *error) 
-              {
-                  if (error != nil)
-                  {
-                      NSLog(@"unable to synchronize scores");
-                      return;
-                  }
-                  
-                  GKScore* gcScore = nil;
-                  if ([playerScores count] > 0)
-                      gcScore = [playerScores objectAtIndex:0];
-                  GKScore* localScore = [self.scores objectForKey:category];
-                  
-                  //Must add the next two lines in order to prevent a 'A GKScore must contain an initialized value' crash
-                  GKScore *toReport = [[GKScore alloc] initWithCategory:category];
-                  toReport.value = localScore.value;
-                  
-                  if (gcScore == nil && localScore == nil)
-                  {
-                      NSLog(@"%@(%lld,%lld): no score yet. nothing to synch", category, gcScore.value, localScore.value);
-                  }
-                  
-                  else if (gcScore == nil)
-                  {
-                      NSLog(@"%@(%lld,%lld): gc score missing. reporting local score", category, gcScore.value, localScore.value);
-                      [localScore reportScoreWithCompletionHandler:^(NSError* error) {}];
-                  }
-                  
-                  else if (localScore == nil)
-                  {
-                      NSLog(@"%@(%lld,%lld): local score missing. caching gc score", category, gcScore.value, localScore.value);
-                      [self.scores setObject:gcScore forKey:gcScore.category];
-                      [self saveScores];
-                  }
-                  
-                  else if ([self compareScore:localScore toScore:gcScore])
-                  {
-                      NSLog(@"%@(%lld,%lld): local score more current than gc score. reporting local score", category, gcScore.value, localScore.value);
-                      [toReport reportScoreWithCompletionHandler:^(NSError* error) {}];
-                  }
-                  
-                  else if ([self compareScore:gcScore toScore:localScore])
-                  {
-                      NSLog(@"%@(%lld,%lld): gc score is more current than local score. caching gc score", category, gcScore.value, localScore.value);
-                      [self.scores setObject:gcScore forKey:gcScore.category];
-                      [self saveScores];
-                  }
-                  
-                  else
-                  {
-                      NSLog(@"%@(%lld,%lld): scores are equal. nothing to synch", category, gcScore.value, localScore.value);
-                  }
-              }];
-         }
-     }];
+    [GKLeaderboard loadLeaderboardsWithCompletionHandler:^(NSArray *leaderboards, NSError *error)
+    {
+        [[NSOperationQueue mainQueue] addOperationWithBlock:^
+        {
+            if (error != nil)
+            {
+                NSLog(@"unable to synchronize scores");
+                return;
+            }
+            
+            NSString* playerId = [GKLocalPlayer localPlayer].playerID;
+            
+            for (GKLeaderboard *globalLeaderboard in leaderboards)
+            {
+                NSString *category = globalLeaderboard.category;
+                
+                GKLeaderboard *leaderboardRequest = [[GKLeaderboard alloc] initWithPlayerIDs:[NSArray arrayWithObject:playerId]];
+                leaderboardRequest.category = category;
+                leaderboardRequest.timeScope = GKLeaderboardTimeScopeAllTime;
+                leaderboardRequest.range = NSMakeRange(1,1);
+                [leaderboardRequest loadScoresWithCompletionHandler: ^(NSArray *playerScores, NSError *error)
+                 {
+                    [[NSOperationQueue mainQueue] addOperationWithBlock:
+                     ^{
+                        if (error != nil)
+                        {
+                            NSLog(@"unable to synchronize scores");
+                            return;
+                        }
+                        
+                        GKScore* gcScore = nil;
+                        if ([playerScores count] > 0)
+                            gcScore = [playerScores objectAtIndex:0];
+                        GKScore* localScore = [self.scores objectForKey:category];
+                        
+                        //Must add the next two lines in order to prevent a 'A GKScore must contain an initialized value' crash
+                        GKScore *toReport = [[GKScore alloc] initWithCategory:category];
+                        toReport.value = localScore.value;
+                        
+                        if (gcScore == nil && localScore == nil)
+                        {
+                            NSLog(@"%@(%lld,%lld): no score yet. nothing to synch", category, gcScore.value, localScore.value);
+                        }
+                        
+                        else if (gcScore == nil)
+                        {
+                            NSLog(@"%@(%lld,%lld): gc score missing. reporting local score", category, gcScore.value, localScore.value);
+                            [localScore reportScoreWithCompletionHandler:^(NSError* error) {}];
+                        }
+                        
+                        else if (localScore == nil)
+                        {
+                            NSLog(@"%@(%lld,%lld): local score missing. caching gc score", category, gcScore.value, localScore.value);
+                            [self.scores setObject:gcScore forKey:gcScore.category];
+                            [self saveScores];
+                        }
+                        
+                        else if ([self compareScore:localScore toScore:gcScore])
+                        {
+                            NSLog(@"%@(%lld,%lld): local score more current than gc score. reporting local score", category, gcScore.value, localScore.value);
+                            [toReport reportScoreWithCompletionHandler:^(NSError* error) {}];
+                        }
+                        
+                        else if ([self compareScore:gcScore toScore:localScore])
+                        {
+                            NSLog(@"%@(%lld,%lld): gc score is more current than local score. caching gc score", category, gcScore.value, localScore.value);
+                            [self.scores setObject:gcScore forKey:gcScore.category];
+                            [self saveScores];
+                        }
+                        
+                        else
+                        {
+                            NSLog(@"%@(%lld,%lld): scores are equal. nothing to synch", category, gcScore.value, localScore.value);
+                        }
+                    }];
+                }];
+            }
+        }];
+    }];
 }
 
 -(void) synchronizeAchievements
@@ -294,43 +304,46 @@ static NSString* const kScoresFile = @".scores";
     
     [GKAchievement loadAchievementsWithCompletionHandler:^(NSArray* gcAchievementsArray, NSError* error)
      {
-         if (error != nil)
-         {
-             NSLog(@"unable to synchronize achievements");
-             return;
-         }
-         
-         // convert NSArray into NSDictionary for ease of use
-         NSMutableDictionary *gcAchievements = [[NSMutableDictionary alloc] init];
-         for (GKAchievement* gcAchievement in gcAchievementsArray) 
-         {
-             [gcAchievements setObject:gcAchievement forKey:gcAchievement.identifier];
-         }
-         
-         // find local achievements not yet reported in game center and report them
-         for (NSString* identifier in self.achievements)
-         {
-             GKAchievement *gcAchievement = [gcAchievements objectForKey:identifier];
-             if (gcAchievement == nil)
-             {
-                 NSLog(@"achievement %@ not in game center. reporting it", identifier);
-                 [[self.achievements objectForKey:identifier] reportAchievementWithCompletionHandler:^(NSError* error) {}];
-             }
-         }
-         
-         // find game center achievements that are not reported locally and store them
-         for (GKAchievement* gcAchievement in gcAchievementsArray)
-         {
-             GKAchievement* localAchievement = [self.achievements objectForKey:gcAchievement.identifier];
-             if (localAchievement == nil)
-             {
-                 NSLog(@"achievement %@ not stored locally. storing it", gcAchievement.identifier);
-                 [self.achievements setObject:gcAchievement forKey:gcAchievement.identifier];
-             }
-         }
-         
-         [self saveAchievements];
-     }];
+        [[NSOperationQueue mainQueue] addOperationWithBlock:
+         ^{
+            if (error != nil)
+            {
+                NSLog(@"unable to synchronize achievements");
+                return;
+            }
+            
+            // convert NSArray into NSDictionary for ease of use
+            NSMutableDictionary *gcAchievements = [[NSMutableDictionary alloc] init];
+            for (GKAchievement* gcAchievement in gcAchievementsArray)
+            {
+                [gcAchievements setObject:gcAchievement forKey:gcAchievement.identifier];
+            }
+            
+            // find local achievements not yet reported in game center and report them
+            for (NSString* identifier in self.achievements)
+            {
+                GKAchievement *gcAchievement = [gcAchievements objectForKey:identifier];
+                if (gcAchievement == nil)
+                {
+                    NSLog(@"achievement %@ not in game center. reporting it", identifier);
+                    [[self.achievements objectForKey:identifier] reportAchievementWithCompletionHandler:^(NSError* error) {}];
+                }
+            }
+            
+            // find game center achievements that are not reported locally and store them
+            for (GKAchievement* gcAchievement in gcAchievementsArray)
+            {
+                GKAchievement* localAchievement = [self.achievements objectForKey:gcAchievement.identifier];
+                if (localAchievement == nil)
+                {
+                    NSLog(@"achievement %@ not stored locally. storing it", gcAchievement.identifier);
+                    [self.achievements setObject:gcAchievement forKey:gcAchievement.identifier];
+                }
+            }
+            
+            [self saveAchievements];
+        }];
+    }];
 }
 
 
@@ -343,27 +356,32 @@ withCompletionBanner:(BOOL)completionBanner
     NSLog(@"reporting score of %lld for %@", value, category);
     GKScore* newScore = [[GKScore alloc] initWithCategory:category];
     newScore.value = value;
-    [newScore reportScoreWithCompletionHandler:^(NSError* error) 
-     {
-         // if it's better than the previous score, then save it and notify the user
-         GKScore* score = [self getScoreByCategory:category];
-         if ([self compareScore:newScore toScore:score])
-         {
-             NSLog(@"new high score of %lld for %@", score.value, category);
-             score.value = value;
-             [self saveScores];
-             
-             if(completionBanner) {
-                 [GKNotificationBanner showBannerWithTitle:NSLocalizedString(@"New High Score", @"New High Score Game Center banner message")
-                                                   message:[NSString stringWithFormat:@"%lld", value]
-                                         completionHandler:nil];
-             }
-             
-             if([self.delegate respondsToSelector:@selector(onSubmitScore:)]) {
-                 [self.delegate onSubmitScore:value];
-             }
-         }
-     }];
+    [newScore reportScoreWithCompletionHandler:^(NSError* error)
+    {
+        [[NSOperationQueue mainQueue] addOperationWithBlock:
+         ^{
+            // if it's better than the previous score, then save it and notify the user
+            GKScore* score = [self getScoreByCategory:category];
+            if ([self compareScore:newScore toScore:score])
+            {
+                NSLog(@"new high score of %lld for %@", score.value, category);
+                score.value = value;
+                [self saveScores];
+                
+                if (completionBanner)
+                {
+                    [GKNotificationBanner showBannerWithTitle:NSLocalizedString(@"New High Score", @"New High Score Game Center banner message")
+                                                      message:[NSString stringWithFormat:@"%lld", value]
+                                            completionHandler:nil];
+                }
+                
+                if ([self.delegate respondsToSelector:@selector(onSubmitScore:)])
+                {
+                    [self.delegate onSubmitScore:value];
+                }
+            }
+        }];
+    }];
 }
 
 -(GKScore*) getScoreByCategory:(NSString*)category
@@ -392,10 +410,14 @@ withCompletionBanner:(BOOL)completionBanner
         achievement.showsCompletionBanner = completionBanner;
         [achievement reportAchievementWithCompletionHandler:^(NSError* error)
          {
-             if([self.delegate respondsToSelector:@selector(onReportAchievement:)]) {
-                 [self.delegate onReportAchievement:achievement];
-             }
-         }];
+            [[NSOperationQueue mainQueue] addOperationWithBlock:
+             ^{
+                if ([self.delegate respondsToSelector:@selector(onReportAchievement:)])
+                {
+                    [self.delegate onReportAchievement:achievement];
+                }
+            }];
+        }];
         
         [self saveAchievements];
     }
@@ -418,23 +440,26 @@ withCompletionBanner:(BOOL)completionBanner
 {
     NSLog(@"loading achievement descriptions");
     
-    [GKAchievementDescription loadAchievementDescriptionsWithCompletionHandler:^(NSArray *achievementDesc, NSError *error) 
+    [GKAchievementDescription loadAchievementDescriptionsWithCompletionHandler:^(NSArray *achievementDesc, NSError *error)
      {
-         self.achievementDescriptions = [[NSMutableDictionary alloc] init];
-         
-         if (error != nil)
-         {
-             NSLog(@"unable to load achievements");
-             return;
-         }
-         
-         for (GKAchievementDescription *description in achievementDesc) 
-         {
-             [self.achievementDescriptions setObject:description forKey:description.identifier];    
-         }
-         
-         NSLog(@"achievement descriptions initialized: %d", self.achievementDescriptions.count);
-     }];
+        [[NSOperationQueue mainQueue] addOperationWithBlock:
+         ^{
+            self.achievementDescriptions = [[NSMutableDictionary alloc] init];
+            
+            if (error != nil)
+            {
+                NSLog(@"unable to load achievements");
+                return;
+            }
+            
+            for (GKAchievementDescription *description in achievementDesc)
+            {
+                [self.achievementDescriptions setObject:description forKey:description.identifier];
+            }
+            
+            NSLog(@"achievement descriptions initialized: %d", self.achievementDescriptions.count);
+        }];
+    }];
 }
 
 -(GKAchievementDescription*) getAchievementDescription:(NSString*)identifier
