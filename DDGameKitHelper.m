@@ -77,13 +77,28 @@ static NSString* const kScoresFile = @".scores";
             {
                 NSLog(@"error authenticating player: %@", [error localizedDescription]);
             }
-            
-            if (viewController)
+            else
             {
-                [[NSOperationQueue mainQueue] addOperationWithBlock:^
+                if([GKLocalPlayer localPlayer].isAuthenticated) {
+                    if([self.delegate respondsToSelector:@selector(acceptedInvite:withPlayers:)]) {
+                        [GKMatchmaker sharedMatchmaker].inviteHandler = ^(GKInvite *acceptedInvite, NSArray *playersToInvite)
+                        {
+                            [self.delegate acceptedInvite:acceptedInvite withPlayers:playersToInvite];
+                        };
+                    } else {
+                        [GKMatchmaker sharedMatchmaker].inviteHandler = nil; 
+                    }
+                } else {
+                    [GKMatchmaker sharedMatchmaker].inviteHandler = nil;
+                }
+                
+                if (viewController)
                 {
-                    [self presentViewController:viewController];
-                }];
+                    [[NSOperationQueue mainQueue] addOperationWithBlock:^
+                     {
+                         [self presentViewController:viewController];
+                     }];
+                }
             }
         };
     }
