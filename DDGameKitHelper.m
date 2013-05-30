@@ -200,7 +200,7 @@ static NSString* const kScoresFile = @".scores";
 
 -(BOOL) compareScore:(GKScore *)score toScore:(GKScore *)otherScore
 {
-    if (self.delegate)
+    if ([self.delegate respondsToSelector:@selector(compare:to:)])
     {
         return [self.delegate compare:score.value to:otherScore.value];
     }
