@@ -15,6 +15,7 @@ static NSString* const kScoresFile = @".scores";
 @property (nonatomic, strong) NSMutableDictionary* achievements;
 @property (nonatomic, strong) NSMutableDictionary* scores;
 @property (nonatomic, strong) NSMutableDictionary* achievementDescriptions;
+@property (nonatomic, assign, getter = isLocalPlayerAuthenticating) BOOL localPlayerAuthenticating;
 
 @end
 
@@ -68,11 +69,17 @@ static NSString* const kScoresFile = @".scores";
 
 -(void) authenticateLocalPlayer
 {
+    self.localPlayerAuthenticating = YES;
+    
     GKLocalPlayer* localPlayer = [GKLocalPlayer localPlayer];
     if (localPlayer.authenticateHandler == nil)
     {
         localPlayer.authenticateHandler = ^(UIViewController *viewController, NSError *error)
         {
+            if(self.localPlayerAuthenticating) {
+                self.localPlayerAuthenticating = NO;
+            }
+            
             if (error != nil)
             {
                 NSLog(@"error authenticating player: %@", [error localizedDescription]);

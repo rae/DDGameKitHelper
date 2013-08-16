@@ -24,7 +24,7 @@
 @property (nonatomic, readonly) NSMutableDictionary* achievements;
 @property (nonatomic, readonly) NSMutableDictionary* scores;
 @property (nonatomic, readonly) NSMutableDictionary* achievementDescriptions;
-
+@property (nonatomic, readonly, assign, getter = isLocalPlayerAuthenticating) BOOL localPlayerAuthenticating;
 
 +(DDGameKitHelper*) sharedGameKitHelper;
 
