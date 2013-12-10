@@ -38,7 +38,7 @@ static NSString* const kScoresFile = @".scores";
 {
     const char *concat_str = [concat UTF8String];
     unsigned char result[CC_MD5_DIGEST_LENGTH];
-    CC_MD5(concat_str, strlen(concat_str), result);
+    CC_MD5(concat_str, (CC_LONG)strlen(concat_str), result);
     NSMutableString *hash = [NSMutableString string];
     for (int i = 0; i < 16; i++)
     {
@@ -182,7 +182,7 @@ static NSString* const kScoresFile = @".scores";
         self.scores = [[NSMutableDictionary alloc] init];
     }
     
-    NSLog(@"scores initialized: %d", self.scores.count);
+    NSLog(@"scores initialized: %lu", (unsigned long)self.scores.count);
 }
 
 -(void) initAchievements
@@ -202,7 +202,7 @@ static NSString* const kScoresFile = @".scores";
         self.achievements = [[NSMutableDictionary alloc] init];
     }
     
-    NSLog(@"achievements initialized: %d", self.achievements.count);
+    NSLog(@"achievements initialized: %lu", (unsigned long)self.achievements.count);
 }
 
 -(BOOL) compareScore:(GKScore *)score toScore:(GKScore *)otherScore
@@ -223,7 +223,7 @@ static NSString* const kScoresFile = @".scores";
     NSString* file = [libraryPath stringByAppendingPathComponent:self.currentPlayerID];
     file = [file stringByAppendingString:kScoresFile];
     [NSKeyedArchiver archiveRootObject:self.scores toFile:file];
-    NSLog(@"scores saved: %d", self.scores.count);
+    NSLog(@"scores saved: %lu", (unsigned long)self.scores.count);
 }
 
 -(void) saveAchievements
@@ -232,7 +232,7 @@ static NSString* const kScoresFile = @".scores";
     NSString* file = [libraryPath stringByAppendingPathComponent:self.currentPlayerID];
     file = [file stringByAppendingString:kAchievementsFile];
     [NSKeyedArchiver archiveRootObject:self.achievements toFile:file];
-    NSLog(@"achievements saved: %d", self.achievements.count);
+    NSLog(@"achievements saved: %lu", (unsigned long)self.achievements.count);
 }
 
 -(void) synchronizeScores
@@ -483,7 +483,7 @@ withCompletionBanner:(BOOL)completionBanner
                 [self.achievementDescriptions setObject:description forKey:description.identifier];
             }
             
-            NSLog(@"achievement descriptions initialized: %d", self.achievementDescriptions.count);
+            NSLog(@"achievement descriptions initialized: %lu", (unsigned long)self.achievementDescriptions.count);
         }];
     }];
 }
