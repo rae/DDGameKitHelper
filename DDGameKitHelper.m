@@ -10,7 +10,7 @@
 static NSString* const kAchievementsFile = @".achievements";
 static NSString* const kScoresFile = @".scores";
 
-@interface DDGameKitHelper ()
+@interface DDGameKitHelper () <GKLocalPlayerListener>
 
 @property (nonatomic, strong) NSMutableDictionary* achievements;
 @property (nonatomic, strong) NSMutableDictionary* scores;
@@ -86,17 +86,9 @@ static NSString* const kScoresFile = @".scores";
             }
             else
             {
-                if([GKLocalPlayer localPlayer].isAuthenticated) {
-                    if([self.delegate respondsToSelector:@selector(acceptedInvite:withPlayers:)]) {
-                        [GKMatchmaker sharedMatchmaker].inviteHandler = ^(GKInvite *acceptedInvite, NSArray *playersToInvite)
-                        {
-                            [self.delegate acceptedInvite:acceptedInvite withPlayers:playersToInvite];
-                        };
-                    } else {
-                        [GKMatchmaker sharedMatchmaker].inviteHandler = nil; 
-                    }
-                } else {
-                    [GKMatchmaker sharedMatchmaker].inviteHandler = nil;
+                GKLocalPlayer *localPlayer = [GKLocalPlayer localPlayer];
+                if(localPlayer.isAuthenticated) {
+                    [localPlayer registerListener:self];
                 }
                 
                 if (viewController)
@@ -109,6 +101,16 @@ static NSString* const kScoresFile = @".scores";
             }
         };
     }
+}
+
+- (void)player:(GKPlayer *)player didAcceptInvite:(GKInvite *)invite
+{
+    [self.delegate acceptedInvite:invite withPlayers:nil];
+}
+
+- (void)player:(GKPlayer *)player didRequestMatchWithPlayers:(NSArray *)playerIDsToInvite
+{
+    [self.delegate acceptedInvite:nil withPlayers:playerIDsToInvite];
 }
 
 -(BOOL) isLocalPlayerAuthenticated
@@ -255,10 +257,10 @@ static NSString* const kScoresFile = @".scores";
             
             for (GKLeaderboard *globalLeaderboard in leaderboards)
             {
-                NSString *category = globalLeaderboard.category;
+                NSString *identifier = globalLeaderboard.identifier;
                 
                 GKLeaderboard *leaderboardRequest = [[GKLeaderboard alloc] initWithPlayerIDs:[NSArray arrayWithObject:playerId]];
-                leaderboardRequest.category = category;
+                leaderboardRequest.identifier = identifier;
                 leaderboardRequest.timeScope = GKLeaderboardTimeScopeAllTime;
                 leaderboardRequest.range = NSMakeRange(1,1);
                 [leaderboardRequest loadScoresWithCompletionHandler: ^(NSArray *playerScores, NSError *error)
@@ -274,46 +276,46 @@ static NSString* const kScoresFile = @".scores";
                         GKScore* gcScore = nil;
                         if ([playerScores count] > 0)
                             gcScore = [playerScores objectAtIndex:0];
-                        GKScore* localScore = [self.scores objectForKey:category];
+                        GKScore* localScore = [self.scores objectForKey:identifier];
                         
                         //Must add the next two lines in order to prevent a 'A GKScore must contain an initialized value' crash
-                        GKScore *toReport = [[GKScore alloc] initWithCategory:category];
+                        GKScore *toReport = [[GKScore alloc] initWithLeaderboardIdentifier:identifier];
                         toReport.value = localScore.value;
                         
                         if (gcScore == nil && localScore == nil)
                         {
-                            NSLog(@"%@(%lld,%lld): no score yet. nothing to synch", category, gcScore.value, localScore.value);
+                            NSLog(@"%@(%lld,%lld): no score yet. nothing to synch", identifier, gcScore.value, localScore.value);
                         }
                         
                         else if (gcScore == nil)
                         {
-                            NSLog(@"%@(%lld,%lld): gc score missing. reporting local score", category, gcScore.value, localScore.value);
-                            [localScore reportScoreWithCompletionHandler:^(NSError* error) {}];
+                            NSLog(@"%@(%lld,%lld): gc score missing. reporting local score", identifier, gcScore.value, localScore.value);
+                            [GKScore reportScores:@[localScore] withCompletionHandler:^(NSError* error) {}];
                         }
                         
                         else if (localScore == nil)
                         {
-                            NSLog(@"%@(%lld,%lld): local score missing. caching gc score", category, gcScore.value, localScore.value);
-                            [self.scores setObject:gcScore forKey:gcScore.category];
+                            NSLog(@"%@(%lld,%lld): local score missing. caching gc score", identifier, gcScore.value, localScore.value);
+                            [self.scores setObject:gcScore forKey:gcScore.leaderboardIdentifier];
                             [self saveScores];
                         }
                         
                         else if ([self compareScore:localScore toScore:gcScore])
                         {
-                            NSLog(@"%@(%lld,%lld): local score more current than gc score. reporting local score", category, gcScore.value, localScore.value);
-                            [toReport reportScoreWithCompletionHandler:^(NSError* error) {}];
+                            NSLog(@"%@(%lld,%lld): local score more current than gc score. reporting local score", identifier, gcScore.value, localScore.value);
+                            [GKScore reportScores:@[toReport] withCompletionHandler:^(NSError* error) {}];
                         }
                         
                         else if ([self compareScore:gcScore toScore:localScore])
                         {
-                            NSLog(@"%@(%lld,%lld): gc score is more current than local score. caching gc score", category, gcScore.value, localScore.value);
-                            [self.scores setObject:gcScore forKey:gcScore.category];
+                            NSLog(@"%@(%lld,%lld): gc score is more current than local score. caching gc score", identifier, gcScore.value, localScore.value);
+                            [self.scores setObject:gcScore forKey:gcScore.leaderboardIdentifier];
                             [self saveScores];
                         }
                         
                         else
                         {
-                            NSLog(@"%@(%lld,%lld): scores are equal. nothing to synch", category, gcScore.value, localScore.value);
+                            NSLog(@"%@(%lld,%lld): scores are equal. nothing to synch", identifier, gcScore.value, localScore.value);
                         }
                     }];
                 }];
@@ -380,9 +382,9 @@ withCompletionBanner:(BOOL)completionBanner
 {
     // always report the new score
     NSLog(@"reporting score of %lld for %@", value, category);
-    GKScore* newScore = [[GKScore alloc] initWithCategory:category];
+    GKScore* newScore = [[GKScore alloc] initWithLeaderboardIdentifier:category];
     newScore.value = value;
-    [newScore reportScoreWithCompletionHandler:^(NSError* error)
+    [GKScore reportScores:@[newScore] withCompletionHandler:^(NSError* error)
     {
         [[NSOperationQueue mainQueue] addOperationWithBlock:^
          {
@@ -416,7 +418,7 @@ withCompletionBanner:(BOOL)completionBanner
     
     if (score == nil)
     {
-        score = [[GKScore alloc] initWithCategory:category];
+        score = [[GKScore alloc] initWithLeaderboardIdentifier:category];
         score.value = 0;
         [self.scores setObject:score forKey:category];
     }
@@ -434,7 +436,7 @@ withCompletionBanner:(BOOL)completionBanner
         NSLog(@"new achievement %@ reported", achievement.identifier);
         achievement.percentComplete = percent;
         achievement.showsCompletionBanner = completionBanner;
-        [achievement reportAchievementWithCompletionHandler:^(NSError* error)
+        [GKAchievement reportAchievements:@[achievement] withCompletionHandler:^(NSError* error)
          {
             [[NSOperationQueue mainQueue] addOperationWithBlock:^
              {
@@ -538,74 +540,57 @@ withCompletionBanner:(BOOL)completionBanner
     }
 }
 
+-(void) showLeaderboard
+{
+    GKGameCenterViewController* leaderboardVC = [[GKGameCenterViewController alloc] init];
+    if (leaderboardVC != nil)
+    {
+        leaderboardVC.gameCenterDelegate = self;
+        leaderboardVC.viewState = GKGameCenterViewControllerStateLeaderboards;
+        [self presentViewController:leaderboardVC];
+    }
+}
+
+-(void) showLeaderboardWithCategory:(NSString*)category
+{
+    GKGameCenterViewController* leaderboardVC = [[GKGameCenterViewController alloc] init];
+    if (leaderboardVC != nil)
+    {
+        leaderboardVC.gameCenterDelegate = self;
+        leaderboardVC.viewState = GKGameCenterViewControllerStateLeaderboards;
+        leaderboardVC.leaderboardIdentifier = category;
+        [self presentViewController:leaderboardVC];
+    }  
+}
+
+-(void) showAchievements
+{
+    GKGameCenterViewController* achievementsVC = [[GKGameCenterViewController alloc] init];
+    if (achievementsVC != nil)
+    {
+        achievementsVC.gameCenterDelegate = self;
+        achievementsVC.viewState = GKGameCenterViewControllerStateAchievements;
+        [self presentViewController:achievementsVC];
+    }
+}
+
 - (void)gameCenterViewControllerDidFinish:(GKGameCenterViewController *)gameCenterViewController
 {
     [self dismissModalViewController];
 }
 
--(void) showLeaderboard
+- (NSUInteger) numberOfTotalAchievements
 {
-    GKLeaderboardViewController* leaderboardVC = [[GKLeaderboardViewController alloc] init];
-    if (leaderboardVC != nil)
+    return [self.achievementDescriptions count];
+}
+
+- (NSUInteger) numberOfCompletedAchievements
+{
+    NSUInteger count = 0;
+    for (GKAchievement* gcAchievement in [self.achievements allValues])
     {
-        leaderboardVC.leaderboardDelegate = self;
-        [self presentViewController:leaderboardVC];
-    }
-}
-
--(void) showLeaderboardwithCategory:(NSString*)category timeScope:(GKLeaderboardTimeScope)tscope
-{
-    GKLeaderboardViewController* leaderboardVC = [[GKLeaderboardViewController alloc] init];
-    if (leaderboardVC != nil)
-    {
-        leaderboardVC.leaderboardDelegate = self;
-        leaderboardVC.category = category;
-        leaderboardVC.timeScope = tscope;
-        [self presentViewController:leaderboardVC];
-    }  
-}
-
--(void) leaderboardViewControllerDidFinish:(GKLeaderboardViewController*)viewController
-{
-    [self dismissModalViewController];
-}
-
--(void) showAchievements
-{
-    GKAchievementViewController* achievementsVC = [[GKAchievementViewController alloc] init];
-    if (achievementsVC != nil)
-    {
-        achievementsVC.achievementDelegate = self;
-        [self presentViewController:achievementsVC];
-    }
-}
-
--(void) achievementViewControllerDidFinish:(GKAchievementViewController*)viewController
-{
-    [self dismissModalViewController];
-}
-
-- (int) numberOfTotalAchievements
-{
-    int count = 0;
-    if (isGameCenterAvailable)
-    {
-        count = [achievementDescriptions allValues].count;
-    }
-    return count;
-}
-
-- (int) numberOfCompletedAchievements
-{
-    int count = 0;
-    if (isGameCenterAvailable)
-    {
-        NSArray* gcAchievementsArray = [achievements allValues];
-        for (GKAchievement* gcAchievement in gcAchievementsArray)
-        {
-            if (gcAchievement.completed)
-                count++;
-        }
+        if (gcAchievement.completed)
+            count++;
     }
     return count;
 }

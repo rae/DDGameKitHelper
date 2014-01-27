@@ -16,7 +16,7 @@
 
 @end
 
-@interface DDGameKitHelper : NSObject <GKLeaderboardViewControllerDelegate, GKAchievementViewControllerDelegate, GKGameCenterControllerDelegate>
+@interface DDGameKitHelper : NSObject <GKGameCenterControllerDelegate>
 
 @property (nonatomic, weak) id<DDGameKitHelperDelegate> delegate;
 
@@ -44,16 +44,14 @@ withCompletionBanner:(BOOL)completionBanner;
 
 -(void) showGameCenter;
 
--(void) showLeaderboard;
-
--(void) showLeaderboardwithCategory:(NSString*)category timeScope:(GKLeaderboardTimeScope)tscope;
+-(void) showLeaderboardWithCategory:(NSString*)category;
 
 -(void) showAchievements;
 
 -(GKAchievementDescription*) getAchievementDescription:(NSString*)identifier;
 
-- (int) numberOfTotalAchievements;
+- (NSUInteger) numberOfTotalAchievements;
 
-- (int) numberOfCompletedAchievements;
+- (NSUInteger) numberOfCompletedAchievements;
 
 @end
