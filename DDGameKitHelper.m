@@ -167,7 +167,7 @@ static NSString* const kScoresFile = @".scores";
 
 -(void) initScores
 {
-    NSString* libraryPath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+    NSString* libraryPath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) firstObject];
     NSString* file = [libraryPath stringByAppendingPathComponent:self.currentPlayerID];
     file = [file stringByAppendingString:kScoresFile];
     id object = [NSKeyedUnarchiver unarchiveObjectWithFile:file];
@@ -189,7 +189,7 @@ static NSString* const kScoresFile = @".scores";
 
 -(void) initAchievements
 {
-    NSString* libraryPath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+    NSString* libraryPath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) firstObject];
     NSString* file = [libraryPath stringByAppendingPathComponent:self.currentPlayerID];
     file = [file stringByAppendingString:kAchievementsFile];
     id object = [NSKeyedUnarchiver unarchiveObjectWithFile:file];
@@ -221,7 +221,7 @@ static NSString* const kScoresFile = @".scores";
 
 - (void) saveScores
 {
-    NSString* libraryPath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+    NSString* libraryPath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) firstObject];
     NSString* file = [libraryPath stringByAppendingPathComponent:self.currentPlayerID];
     file = [file stringByAppendingString:kScoresFile];
     [NSKeyedArchiver archiveRootObject:self.scores toFile:file];
@@ -230,7 +230,7 @@ static NSString* const kScoresFile = @".scores";
 
 -(void) saveAchievements
 {
-    NSString* libraryPath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+    NSString* libraryPath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) firstObject];
     NSString* file = [libraryPath stringByAppendingPathComponent:self.currentPlayerID];
     file = [file stringByAppendingString:kAchievementsFile];
     [NSKeyedArchiver archiveRootObject:self.achievements toFile:file];
@@ -259,7 +259,7 @@ static NSString* const kScoresFile = @".scores";
             {
                 NSString *identifier = globalLeaderboard.identifier;
                 
-                GKLeaderboard *leaderboardRequest = [[GKLeaderboard alloc] initWithPlayerIDs:[NSArray arrayWithObject:playerId]];
+                GKLeaderboard *leaderboardRequest = [[GKLeaderboard alloc] initWithPlayerIDs:@[playerId]];
                 leaderboardRequest.identifier = identifier;
                 leaderboardRequest.timeScope = GKLeaderboardTimeScopeAllTime;
                 leaderboardRequest.range = NSMakeRange(1,1);
@@ -275,8 +275,8 @@ static NSString* const kScoresFile = @".scores";
                         
                         GKScore* gcScore = nil;
                         if ([playerScores count] > 0)
-                            gcScore = [playerScores objectAtIndex:0];
-                        GKScore* localScore = [self.scores objectForKey:identifier];
+                            gcScore = [playerScores firstObject];
+                        GKScore* localScore = (self.scores)[identifier];
                         
                         //Must add the next two lines in order to prevent a 'A GKScore must contain an initialized value' crash
                         GKScore *toReport = [[GKScore alloc] initWithLeaderboardIdentifier:identifier];
@@ -296,7 +296,7 @@ static NSString* const kScoresFile = @".scores";
                         else if (localScore == nil)
                         {
                             NSLog(@"%@(%lld,%lld): local score missing. caching gc score", identifier, gcScore.value, localScore.value);
-                            [self.scores setObject:gcScore forKey:gcScore.leaderboardIdentifier];
+                            (self.scores)[gcScore.leaderboardIdentifier] = gcScore;
                             [self saveScores];
                         }
                         
@@ -309,7 +309,7 @@ static NSString* const kScoresFile = @".scores";
                         else if ([self compareScore:gcScore toScore:localScore])
                         {
                             NSLog(@"%@(%lld,%lld): gc score is more current than local score. caching gc score", identifier, gcScore.value, localScore.value);
-                            [self.scores setObject:gcScore forKey:gcScore.leaderboardIdentifier];
+                            (self.scores)[gcScore.leaderboardIdentifier] = gcScore;
                             [self saveScores];
                         }
                         
@@ -344,28 +344,28 @@ static NSString* const kScoresFile = @".scores";
             NSMutableDictionary *gcAchievements = [[NSMutableDictionary alloc] init];
             for (GKAchievement* gcAchievement in gcAchievementsArray)
             {
-                [gcAchievements setObject:gcAchievement forKey:gcAchievement.identifier];
+                gcAchievements[gcAchievement.identifier] = gcAchievement;
             }
             
             // find local achievements not yet reported in game center and report them
             for (NSString* identifier in self.achievements)
             {
-                GKAchievement *gcAchievement = [gcAchievements objectForKey:identifier];
+                GKAchievement *gcAchievement = gcAchievements[identifier];
                 if (gcAchievement == nil)
                 {
                     NSLog(@"achievement %@ not in game center. reporting it", identifier);
-                    [[self.achievements objectForKey:identifier] reportAchievementWithCompletionHandler:^(NSError* error) {}];
+                    [self.achievements[identifier] reportAchievementWithCompletionHandler:^(NSError* error) {}];
                 }
             }
             
             // find game center achievements that are not reported locally and store them
             for (GKAchievement* gcAchievement in gcAchievementsArray)
             {
-                GKAchievement* localAchievement = [self.achievements objectForKey:gcAchievement.identifier];
+                GKAchievement* localAchievement = self.achievements[gcAchievement.identifier];
                 if (localAchievement == nil)
                 {
                     NSLog(@"achievement %@ not stored locally. storing it", gcAchievement.identifier);
-                    [self.achievements setObject:gcAchievement forKey:gcAchievement.identifier];
+                    self.achievements[gcAchievement.identifier] = gcAchievement;
                 }
             }
             
@@ -414,13 +414,13 @@ withCompletionBanner:(BOOL)completionBanner
 
 -(GKScore*) getScoreByCategory:(NSString*)category
 {
-    GKScore* score = [self.scores objectForKey:category];
+    GKScore* score = self.scores[category];
     
     if (score == nil)
     {
         score = [[GKScore alloc] initWithLeaderboardIdentifier:category];
         score.value = 0;
-        [self.scores setObject:score forKey:category];
+        self.scores[category] = score;
     }
     
     return score;
@@ -453,12 +453,12 @@ withCompletionBanner:(BOOL)completionBanner
 
 -(GKAchievement*) getAchievement:(NSString*)identifier
 {
-    GKAchievement* achievement = [self.achievements objectForKey:identifier];
+    GKAchievement* achievement = self.achievements[identifier];
     
     if (achievement == nil)
     {
         achievement = [[GKAchievement alloc] initWithIdentifier:identifier];
-        [self.achievements setObject:achievement forKey:achievement.identifier];
+        self.achievements[achievement.identifier] = achievement;
     }
     
     return achievement;
@@ -482,7 +482,7 @@ withCompletionBanner:(BOOL)completionBanner
             
             for (GKAchievementDescription *description in achievementDesc)
             {
-                [self.achievementDescriptions setObject:description forKey:description.identifier];
+                self.achievementDescriptions[description.identifier] = description;
             }
             
             NSLog(@"achievement descriptions initialized: %lu", (unsigned long)self.achievementDescriptions.count);
@@ -492,8 +492,7 @@ withCompletionBanner:(BOOL)completionBanner
 
 -(GKAchievementDescription*) getAchievementDescription:(NSString*)identifier
 {
-    GKAchievementDescription* description = [self.achievementDescriptions objectForKey:identifier];
-    return description;    
+    return self.achievementDescriptions[identifier];
 }
 
 -(void) resetAchievements
@@ -587,7 +586,7 @@ withCompletionBanner:(BOOL)completionBanner
 - (NSUInteger) numberOfCompletedAchievements
 {
     NSUInteger count = 0;
-    for (GKAchievement* gcAchievement in [self.achievements allValues])
+    for (GKAchievement* gcAchievement in [self.achievements objectEnumerator])
     {
         if (gcAchievement.completed)
             count++;
