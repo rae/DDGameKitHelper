@@ -172,8 +172,6 @@ static NSString* const kScoresFile = @".scores";
     file = [file stringByAppendingString:kScoresFile];
     id object = [NSKeyedUnarchiver unarchiveObjectWithFile:file];
     
-    
-    
     if ([object isKindOfClass:[NSMutableDictionary class]])
     {
         NSMutableDictionary* loadedScores = (NSMutableDictionary*)object;
@@ -377,7 +375,7 @@ static NSString* const kScoresFile = @".scores";
 
 
 -(void) submitScore:(int64_t)value
-           category:(NSString*)category
+leaderboardIdentifier:(NSString*)category
 withCompletionBanner:(BOOL)completionBanner
 {
     // always report the new score

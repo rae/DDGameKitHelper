@@ -33,7 +33,7 @@
 -(BOOL) isLocalPlayerAuthenticated;
 
 -(void) submitScore:(int64_t)value
-           category:(NSString*)category
+leaderboardIdentifier:(NSString*)category
 withCompletionBanner:(BOOL)completionBanner;
 
 -(void) reportAchievement:(NSString*)identifier
