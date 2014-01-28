@@ -44,6 +44,8 @@ withCompletionBanner:(BOOL)completionBanner;
 
 -(void) showGameCenter;
 
+-(void) showLeaderboard;
+
 -(void) showLeaderboardWithCategory:(NSString*)category;
 
 -(void) showAchievements;
