@@ -52,6 +52,7 @@ static NSString* const kScoresFile = @".scores";
 {
     if ((self = [super init]))
     {
+        [self onLocalPlayerAuthenticationChanged];
         [self registerForLocalPlayerAuthChange];
     }
     
@@ -125,11 +126,6 @@ static NSString* const kScoresFile = @".scores";
     GKLocalPlayer* localPlayer = [GKLocalPlayer localPlayer];
     
     // if not authenticating then just return
-    
-    if (!localPlayer.isAuthenticated)
-    {
-        return;
-    }
     
     NSLog(@"onLocalPlayerAuthenticationChanged. reloading scores and achievements and resynchronzing.");
     
