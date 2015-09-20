@@ -9,51 +9,45 @@
 @protocol DDGameKitHelperDelegate <NSObject>
 
 @optional
--(BOOL) compare:(int64_t)score1 to:(int64_t)score2;
--(void) onSubmitScore:(int64_t)score;
--(void) onReportAchievement:(GKAchievement*)achievement;
--(void) acceptedInvite:(GKInvite *)acceptedInvite withPlayers:(NSArray *)playersToInvite;
+-(BOOL) compareScore:(int64_t)score1 toScore:(int64_t)score2;
+-(void) didSubmitScore:(int64_t)score;
+-(void) didReportAchievement:(GKAchievement*)achievement;
+-(void) didAcceptInvite:(GKInvite *)invite withPlayers:(NSArray *)playersToInvite;
 
 @end
 
+/// Helper class to simplify interactions with GameKit
 @interface DDGameKitHelper : NSObject <GKGameCenterControllerDelegate>
 
 @property (nonatomic, weak) id<DDGameKitHelperDelegate> delegate;
-
 @property (nonatomic, copy) NSString* currentPlayerID;
 @property (nonatomic, readonly) NSMutableDictionary* achievements;
 @property (nonatomic, readonly) NSMutableDictionary* scores;
 @property (nonatomic, readonly) NSMutableDictionary* achievementDescriptions;
 @property (nonatomic, readonly, assign, getter = isLocalPlayerAuthenticating) BOOL localPlayerAuthenticating;
+@property (nonatomic, strong) void (^preGameCenterHandler)();
+@property (nonatomic, strong) void (^postGameCenterHandler)();
 
-+(DDGameKitHelper*) sharedGameKitHelper;
++(DDGameKitHelper*) sharedHelper;
 
 -(void) authenticateLocalPlayer;
-
--(BOOL) isLocalPlayerAuthenticated;
+-(BOOL) localPlayerIsAuthenticated;
 
 -(void) submitScore:(int64_t)value
-leaderboardIdentifier:(NSString*)category
-withCompletionBanner:(BOOL)completionBanner;
+	  toLeaderboard:(NSString*)category
+		 showBanner:(BOOL)completionBanner;
 
 -(void) reportAchievement:(NSString*)identifier
-          percentComplete:(double)percent
-     withCompletionBanner:(BOOL)completionBanner;
+          percentProgress:(double)percent
+			   showBanner:(BOOL)completionBanner;
 
 -(void) resetAchievements;
-
 -(void) showGameCenter;
-
 -(void) showLeaderboard;
-
--(void) showLeaderboardWithCategory:(NSString*)category;
-
+-(void) showLeaderboardCategory:(NSString*)category;
 -(void) showAchievements;
-
--(GKAchievementDescription*) getAchievementDescription:(NSString*)identifier;
-
+-(GKAchievementDescription*) achievementDescriptionForId:(NSString*)identifier;
 - (NSUInteger) numberOfTotalAchievements;
-
 - (NSUInteger) numberOfCompletedAchievements;
 
 @end

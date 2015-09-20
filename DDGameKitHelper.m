@@ -21,7 +21,7 @@ static NSString* const kScoresFile = @".scores";
 
 @implementation DDGameKitHelper
 
-+(DDGameKitHelper*) sharedGameKitHelper
++(DDGameKitHelper*) sharedHelper
 {
     static DDGameKitHelper *sInstanceOfGameKitHelper;
 
@@ -84,6 +84,9 @@ static NSString* const kScoresFile = @".scores";
             if (error != nil)
             {
                 NSLog(@"error authenticating player: %@", [error localizedDescription]);
+				if(self.postGameCenterHandler != nil) {
+					self.postGameCenterHandler();
+				}
             }
             else
             {
@@ -94,9 +97,11 @@ static NSString* const kScoresFile = @".scores";
                 
                 if (viewController)
                 {
-                    [[NSOperationQueue mainQueue] addOperationWithBlock:^
-                     {
-                         [self presentViewController:viewController];
+                    [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+						if(self.preGameCenterHandler != nil) {
+							self.preGameCenterHandler();
+						}
+						[self presentViewController:viewController];
                      }];
                 }
             }
@@ -106,15 +111,19 @@ static NSString* const kScoresFile = @".scores";
 
 - (void)player:(GKPlayer *)player didAcceptInvite:(GKInvite *)invite
 {
-    [self.delegate acceptedInvite:invite withPlayers:nil];
+    if ([self.delegate respondsToSelector:@selector(didAcceptInvite:withPlayers:)]) {
+		[self.delegate didAcceptInvite:invite withPlayers:nil];
+	}
 }
 
 - (void)player:(GKPlayer *)player didRequestMatchWithPlayers:(NSArray *)playerIDsToInvite
 {
-    [self.delegate acceptedInvite:nil withPlayers:playerIDsToInvite];
+    if ([self.delegate respondsToSelector:@selector(didAcceptInvite:withPlayers:)]) {
+		[self.delegate didAcceptInvite:nil withPlayers:playerIDsToInvite];
+	}
 }
 
--(BOOL) isLocalPlayerAuthenticated
+-(BOOL) localPlayerIsAuthenticated
 {
 	GKLocalPlayer* localPlayer = [GKLocalPlayer localPlayer];
 	return localPlayer.authenticated;
@@ -203,9 +212,9 @@ static NSString* const kScoresFile = @".scores";
 
 -(BOOL) compareScore:(GKScore *)score toScore:(GKScore *)otherScore
 {
-    if ([self.delegate respondsToSelector:@selector(compare:to:)])
+    if ([self.delegate respondsToSelector:@selector(compareScore:toScore:)])
     {
-        return [self.delegate compare:score.value to:otherScore.value];
+        return [self.delegate compareScore:score.value toScore:otherScore.value];
     }
     else
     {
@@ -371,8 +380,8 @@ static NSString* const kScoresFile = @".scores";
 
 
 -(void) submitScore:(int64_t)value
-leaderboardIdentifier:(NSString*)category
-withCompletionBanner:(BOOL)completionBanner
+	  toLeaderboard:(NSString*)category
+		 showBanner:(BOOL)completionBanner
 {
     // always report the new score
     NSLog(@"reporting score of %lld for %@", value, category);
@@ -397,9 +406,9 @@ withCompletionBanner:(BOOL)completionBanner
                                             completionHandler:nil];
                 }
                 
-                if ([self.delegate respondsToSelector:@selector(onSubmitScore:)])
+                if ([self.delegate respondsToSelector:@selector(didSubmitScore:)])
                 {
-                    [self.delegate onSubmitScore:value];
+                    [self.delegate didSubmitScore:value];
                 }
             }
         }];
@@ -421,8 +430,8 @@ withCompletionBanner:(BOOL)completionBanner
 }
 
 -(void) reportAchievement:(NSString*)identifier
-          percentComplete:(double)percent
-     withCompletionBanner:(BOOL)completionBanner
+          percentProgress:(double)percent
+			   showBanner:(BOOL)completionBanner
 {
     GKAchievement* achievement = [self getAchievement:identifier];
     if (achievement.percentComplete < percent)
@@ -434,9 +443,9 @@ withCompletionBanner:(BOOL)completionBanner
          {
             [[NSOperationQueue mainQueue] addOperationWithBlock:^
              {
-                if ([self.delegate respondsToSelector:@selector(onReportAchievement:)])
+                if ([self.delegate respondsToSelector:@selector(didReportAchievement:)])
                 {
-                    [self.delegate onReportAchievement:achievement];
+                    [self.delegate didReportAchievement:achievement];
                 }
             }];
         }];
@@ -484,7 +493,7 @@ withCompletionBanner:(BOOL)completionBanner
     }];
 }
 
--(GKAchievementDescription*) getAchievementDescription:(NSString*)identifier
+-(GKAchievementDescription*) achievementDescriptionForId:(NSString*)identifier
 {
     return self.achievementDescriptions[identifier];
 }
@@ -544,7 +553,7 @@ withCompletionBanner:(BOOL)completionBanner
     }
 }
 
--(void) showLeaderboardWithCategory:(NSString*)category
+-(void) showLeaderboardCategory:(NSString*)category
 {
     GKGameCenterViewController* leaderboardVC = [[GKGameCenterViewController alloc] init];
     if (leaderboardVC != nil)
@@ -570,6 +579,9 @@ withCompletionBanner:(BOOL)completionBanner
 - (void)gameCenterViewControllerDidFinish:(GKGameCenterViewController *)gameCenterViewController
 {
     [self dismissModalViewController];
+	if(self.postGameCenterHandler != nil) {
+		self.postGameCenterHandler();
+	}
 }
 
 - (NSUInteger) numberOfTotalAchievements
